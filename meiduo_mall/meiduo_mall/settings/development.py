@@ -10,7 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
-import os, sys
+import os
+import sys
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,6 +30,7 @@ ALLOWED_HOSTS = []
 
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -38,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
     'users.apps.UsersConfig',
 ]
 
@@ -128,7 +131,10 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-STATICFILES_DIRS = os.path.join(BASE_DIR, 'statics')
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'statics'),
+]
+
 
 # Session configuration
 
@@ -152,6 +158,7 @@ CACHES = {
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 
 SESSION_CACHE_ALIAS = 'session'
+
 
 # Logging configuration
 
@@ -195,3 +202,7 @@ LOGGING = {
         },
     }
 }
+
+# Authentication
+
+AUTH_USER_MODEL = 'users.User'
