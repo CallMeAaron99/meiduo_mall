@@ -5,7 +5,18 @@ from users.models import User
 import re
 
 
+def is_username_exist(request, username):
+
+    return http.JsonResponse({'count': User.objects.filter(username=username).count()})
+
+
+def is_mobile_exist(request, mobile):
+
+    return http.JsonResponse({'count': User.objects.filter(mobile=mobile).count()})
+
+
 class RegisterView(View):
+    """ register """
 
     @staticmethod
     def get(request):
@@ -56,6 +67,7 @@ class RegisterView(View):
 
 
 class LoginView(View):
+    """ login """
 
     @staticmethod
     def get(request):
