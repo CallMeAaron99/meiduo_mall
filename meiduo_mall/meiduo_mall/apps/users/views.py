@@ -1,18 +1,22 @@
 from django.shortcuts import render, redirect
 from django.views import View
 from django import http
-from users.models import User
+from django_redis import get_redis_connection
 import re
+
+from .models import User
 
 
 def is_username_exist(request, username):
-
-    return http.JsonResponse({'count': User.objects.filter(username=username).count()})
+    if request.method == 'GET':
+        return http.JsonResponse({'count': User.objects.filter(username=username).count()})
+    return http.HttpResponseForbidden()
 
 
 def is_mobile_exist(request, mobile):
-
-    return http.JsonResponse({'count': User.objects.filter(mobile=mobile).count()})
+    if request.method == 'GET':
+        return http.JsonResponse({'count': User.objects.filter(mobile=mobile).count()})
+    return http.HttpResponseForbidden()
 
 
 class RegisterView(View):
@@ -24,44 +28,44 @@ class RegisterView(View):
 
     @staticmethod
     def post(request):
-        registration_info = request.POST
+        # registration_info = request.POST
 
-        username = registration_info.get('username')
-        password = registration_info.get('password')
-        password2 = registration_info.get('password2')
-        mobile = registration_info.get('mobile')
-        sms_code = registration_info.get('sms_code')
-        allow = registration_info.get('allow')
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        password2 = request.POST.get('password2')
+        mobile = request.POST.get('mobile')
+        sms_code = request.POST.get('sms_code')
+        allow = request.POST.get('allow')
 
         # 数据的 '' 和 None 判断
         if not all([username, password, password2, mobile, sms_code, allow]):
             return http.HttpResponseForbidden()
 
         # username 判断
-        elif not re.match(r'^[a-zA-Z0-9_-]{5,20}$', username):
-            return http.HttpResponseBadRequest()
+        if not re.match(r'^[a-zA-Z0-9_-]{5,20}$', username):
+            return http.HttpResponseForbidden()
 
         # password 判断
-        elif not re.match(r'^[0-9A-Za-z]{8,20}$', password):
-            return http.HttpResponseBadRequest()
+        if not re.match(r'^[0-9A-Za-z]{8,20}$', password):
+            return http.HttpResponseForbidden()
 
         # 二次密码判断
-        elif password != password2:
-            return http.HttpResponseBadRequest()
+        if password != password2:
+            return http.HttpResponseForbidden()
 
         # mobile 判断
-        elif not re.match(r'^1[345789]\d{9}$', mobile):
-            return http.HttpResponseBadRequest()
-
-        # TODO 短信验证
+        if not re.match(r'^1[345789]\d{9}$', mobile):
+            return http.HttpResponseForbidden()
 
         # 协议判断
-        elif allow != 'on':
-            return http.HttpResponseBadRequest()
+        if allow != 'on':
+            return http.HttpResponseForbidden()
+
+        # TODO 短信验证
+        redis_connection = get_redis_connection('verification')
 
         # 录入信息
-        else:
-            User.objects.create_user(username=username, password=password, mobile=mobile)
+        User.objects.create_user(username=username, password=password, mobile=mobile)
 
         return redirect('users:login')
 
