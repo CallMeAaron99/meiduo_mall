@@ -61,8 +61,17 @@ class RegisterView(View):
         if allow != 'on':
             return http.HttpResponseForbidden()
 
-        # TODO 短信验证
+        # 获取 redis 短信验证码
         redis_connection = get_redis_connection('verification')
+        server_sms_code = redis_connection.get('sms_code_%s' % mobile)
+
+        # 短信验证码过期
+        if server_sms_code is None:
+            return render(request, 'register.html', {'register_errmsg': "短信验证码过期"})
+
+        # 短信验证码不正确
+        if sms_code != server_sms_code.decode():
+            return render(request, 'register.html', {'register_errmsg': "短信验证码不正确"})
 
         # 录入信息
         User.objects.create_user(username=username, password=password, mobile=mobile)

@@ -5,7 +5,7 @@ from random import randint
 
 from meiduo_mall.libs.captcha.captcha import captcha
 from meiduo_mall.utils.response_code import RETCODE
-from meiduo_mall.libs.yuntongxun.sms import CCP
+from celery_tasks.sms.tasks import send_sms_code
 from logging import getLogger
 
 logger = getLogger('django')
@@ -54,10 +54,13 @@ def sms_verification_code(request, mobile):
         sms_code = '%06d' % randint(0, 999999)
 
         # 发送短信
-        CCP().send_template_sms(to=mobile, datas=[sms_code, 5], temp_id=1)
+        # CCP().send_template_sms(to=mobile, datas=[sms_code, 2], temp_id=1)
+
+        # celery 发送短信任务添加
+        send_sms_code.delay(mobile, sms_code)
 
         #  短信验证码保存到 redis
-        redis_connection.setex('sms_code_%s' % mobile, 60 * 5, sms_code)
+        redis_connection.setex('sms_code_%s' % mobile, 120, sms_code)
 
         # 测试短信验证码
         logger.info(sms_code)
