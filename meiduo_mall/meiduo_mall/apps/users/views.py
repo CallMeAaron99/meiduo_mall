@@ -101,8 +101,8 @@ class LoginView(View):
         if all([username, password]) is False:
             return http.HttpResponseForbidden()
 
-        # 用户名格式不正确
-        if not re.match(r'^[a-zA-Z0-9_-]{5,20}$', username):
+        # 用户名或手机格式不正确
+        if not re.match(r'^([a-zA-Z0-9_-]{5,20}|1[345789]\d{9})$', username):
             return http.HttpResponseForbidden()
 
         # 密码式不正确
@@ -113,10 +113,32 @@ class LoginView(View):
         # try:
         #     user = User.objects.get(username=username)
         # except User.DoesNotExist:
-        #     return "用户名或密码不正确"
+        #     return http.HttpResponse("用户名或密码不正确")
         # else:
         #     if user.check_password(password) is False:
-        #         return "用户名或密码不正确"
+        #         return http.HttpResponse("用户名或密码不正确")
+
+        # 多账号登录, or 查询
+        # from django.db.models.query_utils import Q
+        # try:
+        #     user = User.objects.get(Q(username=username) | Q(mobile=username))
+        # except User.DoesNotExist:
+        #     return http.HttpResponse("用户名或密码不正确")
+        # else:
+        #     if user.check_password(password) is False:
+        #         return http.HttpResponse("用户名或密码不正确")
+
+        # 多账号登录, 正则表达式
+        # try:
+        #     if re.match(r'^[a-zA-Z0-9_-]{5,20}$', username):
+        #         user = User.objects.get(username=username)
+        #     else:
+        #         user = User.objects.get(mobile=username)
+        # except User.DoesNotExist:
+        #     return http.HttpResponse("用户名或密码不正确")
+        # else:
+        #     if user.check_password(password) is False:
+        #         return http.HttpResponse("用户名或密码不正确")
 
         # 用户名密码判断 (正确返回 user 模型类对象, 否则返回 None)
         user = authenticate(request, username=username, password=password)
@@ -128,11 +150,16 @@ class LoginView(View):
         # 登录状态保持
         login(request, user)
 
+        # 获取 HttpResponse 对象
+        response = redirect('/')
+
         # 记住登录没勾选
         if remembered is None:
             # 登录状态会话结束时消失
             request.session.set_expiry(constants.DEFAULT_PASSWORD_SESSION_EXPIRY)
+            response.set_cookie('username', user.username)
         else:
             request.session.set_expiry(constants.REMEMBERED_PASSWORD_SESSION_EXPIRY)
+            response.set_cookie('username', user.username, max_age=constants.REMEMBERED_PASSWORD_SESSION_EXPIRY)
 
-        return redirect('/')
+        return response

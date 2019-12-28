@@ -215,3 +215,5 @@ LOGGING = {
 # Authentication
 
 AUTH_USER_MODEL = 'users.User'
+
+AUTHENTICATION_BACKENDS = ['users.utils.UserModelBackend']
