@@ -25,6 +25,22 @@ def is_mobile_exist(request, mobile):
     return http.HttpResponseForbidden()
 
 
+def log_out(request):
+    """ log out """
+    if request.method == 'GET':
+
+        # 解除登录状态
+        logout(request)
+
+        # 删除 username cookie
+        response = redirect('/login/')
+        response.delete_cookie('username')
+
+        return response
+
+    return http.HttpResponseForbidden()
+
+
 class RegisterView(View):
     """ register """
 

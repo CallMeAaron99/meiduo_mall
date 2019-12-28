@@ -216,4 +216,5 @@ LOGGING = {
 
 AUTH_USER_MODEL = 'users.User'
 
+# authenticate 认证方法入口
 AUTHENTICATION_BACKENDS = ['users.utils.UserModelBackend']
