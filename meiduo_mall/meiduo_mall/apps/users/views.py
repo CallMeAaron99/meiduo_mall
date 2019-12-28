@@ -41,6 +41,15 @@ def log_out(request):
     return http.HttpResponseForbidden()
 
 
+def user_center(request):
+
+    # 查看 request.user 用户是 AnonymousUser 对象还是 AbstractBaseUser 对象
+    if request.user.is_authenticated:
+        return render(request, 'user_center_info.html')
+    else:
+        return redirect('/login/?next=/info/')
+
+
 class RegisterView(View):
     """ register """
 
@@ -166,8 +175,8 @@ class LoginView(View):
         # 登录状态保持
         login(request, user)
 
-        # 获取 HttpResponse 对象
-        response = redirect('/')
+        # 获取 HttpResponse 对象, 如果有 next 查询参数返回参数值, 否则 '/'
+        response = redirect(request.GET.get('next') or '/')
 
         # 记住登录没勾选
         if remembered is None:
