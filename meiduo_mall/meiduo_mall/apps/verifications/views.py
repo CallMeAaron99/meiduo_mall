@@ -1,13 +1,14 @@
-from django.shortcuts import render
-from django import http
 from django_redis import get_redis_connection
 from random import randint
+from django import http
+
 
 from meiduo_mall.libs.captcha.captcha import captcha
 from meiduo_mall.utils.response_code import RETCODE
 from celery_tasks.sms.tasks import send_sms_code
-from . import constants
 from logging import getLogger
+from . import constants
+
 
 logger = getLogger('django')
 
@@ -63,7 +64,7 @@ def sms_verification_code(request, mobile):
         # 发送短信
         # CCP().send_template_sms(to=mobile, datas=[sms_code, 2], temp_id=1)
 
-        # celery 发送短信任务添加
+        # celery 将发送短信的任务存放到 broker
         send_sms_code.delay(mobile, sms_code)
 
         # redis 管道对象 (用于一次向数据库发送多个请求)

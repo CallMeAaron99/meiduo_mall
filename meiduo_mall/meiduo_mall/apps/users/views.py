@@ -1,8 +1,8 @@
+from django.contrib.auth import login, logout, authenticate
 from django.shortcuts import render, redirect
+from django_redis import get_redis_connection
 from django.views import View
 from django import http
-from django_redis import get_redis_connection
-from django.contrib.auth import login, logout, authenticate
 import re
 
 from .models import User
@@ -13,6 +13,7 @@ def is_username_exist(request, username):
     """ 用户名重名 """
     if request.method == 'GET':
         return http.JsonResponse({'count': User.objects.filter(username=username).count()})
+
     return http.HttpResponseForbidden()
 
 
@@ -20,6 +21,7 @@ def is_mobile_exist(request, mobile):
     """ 手机号重复 """
     if request.method == 'GET':
         return http.JsonResponse({'count': User.objects.filter(mobile=mobile).count()})
+
     return http.HttpResponseForbidden()
 
 
@@ -80,7 +82,7 @@ class RegisterView(View):
         # 录入信息
         User.objects.create_user(username=username, password=password, mobile=mobile)
 
-        return redirect('users:login')
+        return redirect('/')
 
 
 class LoginView(View):
@@ -128,9 +130,9 @@ class LoginView(View):
 
         # 记住登录没勾选
         if remembered is None:
-            # 登录状态回话结束时消失
+            # 登录状态会话结束时消失
             request.session.set_expiry(constants.DEFAULT_PASSWORD_SESSION_EXPIRY)
         else:
             request.session.set_expiry(constants.REMEMBERED_PASSWORD_SESSION_EXPIRY)
 
-        return render(request, 'index.html')
+        return redirect('/')
