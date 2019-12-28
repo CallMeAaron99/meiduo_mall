@@ -6,6 +6,7 @@ from random import randint
 from meiduo_mall.libs.captcha.captcha import captcha
 from meiduo_mall.utils.response_code import RETCODE
 from celery_tasks.sms.tasks import send_sms_code
+from . import constants
 from logging import getLogger
 
 logger = getLogger('django')
@@ -19,7 +20,7 @@ def image_verification_code(request, uuid):
 
         # 图形验证码保存到 redis
         redis_connection = get_redis_connection('verification')
-        redis_connection.setex(uuid, 300, text)
+        redis_connection.setex(uuid, constants.IMAGE_CODE_EXPIRY, text)
 
         return http.HttpResponse(img_bytes, content_type='image/png')
 
@@ -38,8 +39,14 @@ def sms_verification_code(request, mobile):
         if all([client_image_code, uuid, mobile]) is False:
             return http.HttpResponseForbidden()
 
-        # 获取 redis 中的图形验证码
+        # 连接 redis 客户端
         redis_connection = get_redis_connection('verification')
+
+        # 获取 redis 中的短信验证码发送标识
+        if redis_connection.get('sms_code_flag_%s' % mobile):
+            return http.JsonResponse({'code': RETCODE.THROTTLINGERR, 'errmsg': "验证码请求过于频繁"})
+
+        # 获取 redis 中的图形验证码
         server_image_code = redis_connection.get(uuid)
 
         # 图形验证码过期
@@ -59,8 +66,17 @@ def sms_verification_code(request, mobile):
         # celery 发送短信任务添加
         send_sms_code.delay(mobile, sms_code)
 
-        #  短信验证码保存到 redis
-        redis_connection.setex('sms_code_%s' % mobile, 120, sms_code)
+        # redis 管道对象 (用于一次向数据库发送多个请求)
+        pl = redis_connection.pipeline()
+
+        # 短信验证码保存到 redis
+        pl.setex('sms_code_%s' % mobile, constants.SMS_CODE_EXPIRY, sms_code)
+
+        # 短信验证码发送标识创建 (防止连续发送短信验证码)
+        pl.setex('sms_code_flag_%s' % mobile, constants.SMS_CODE_FLAG_EXPIRY, 1)
+
+        # 执行管道中的 non-sql
+        pl.execute()
 
         # 测试短信验证码
         logger.info(sms_code)
