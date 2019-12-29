@@ -26,7 +26,7 @@ SECRET_KEY = '5()v!iicz1y9fva7wjiev=hw*pd(&dxuqu+#%2%5uutz^zbg^w'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', 'www.meiduo.site']
 
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 
@@ -142,21 +142,21 @@ STATICFILES_DIRS = [
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1/1',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient'
         }
     },
     'session': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1/2',
+        'LOCATION': 'redis://127.0.0.1:6379/2',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient'
         }
     },
     'verification': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1/3',
+        'LOCATION': 'redis://127.0.0.1:6379/3',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient'
         }
