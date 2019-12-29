@@ -1,5 +1,5 @@
 # how to set up
-If you don't have virtualenvwrapper
+If you don't have virtualenvwrapper installed
 
 ```shell
 pip install virtualenvwrapper 
