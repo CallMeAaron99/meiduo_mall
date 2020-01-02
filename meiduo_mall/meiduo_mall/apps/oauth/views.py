@@ -75,17 +75,16 @@ class OAuthCallback(View):
             return response
         # 未绑定
         except OAuthQQUser.DoesNotExist:
-            open_id = serializer.serialize(600, open_id=open_id)
+            open_id = serializer.serialize(600, open_id=open_id).decode()
             return render(request, 'oauth_callback.html', {'openid': open_id})
 
     def post(self, request):
-        query_dict = request.POST
-        mobile = query_dict.get('mobile')
-        password = query_dict.get('password')
-        sms_code = query_dict.get('sms_code')
-        openid = query_dict.get('openid')
+        mobile = request.POST.get('mobile')
+        password = request.POST.get('password')
+        sms_code = request.POST.get('sms_code')
+        openid = request.POST.get('openid')
 
-        if all(query_dict.dict().values()) is False:
+        if all([mobile, password, sms_code, openid]) is False:
             return http.HttpResponseForbidden()
 
         # 手机号和密码格式判断
@@ -104,6 +103,13 @@ class OAuthCallback(View):
         if sms_code != server_sms_code.decode():
             # redis_connection.delete('sms_code_%s' % mobile)
             return render(request, 'oauth_callback.html', {'sms_code_errmsg': '短信验证码不正确'})
+
+        # 将 open id 解密并重新赋值
+        openid = serializer.deserialize(openid)
+
+        # 解密失败
+        if openid is None:
+            return render(request, 'oauth_callback.html', {'openid_errmsg': 'QQ授权过期'})
 
         try:
             user = User.objects.get(mobile=mobile)
