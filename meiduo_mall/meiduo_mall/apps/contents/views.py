@@ -1,10 +1,10 @@
 from django.shortcuts import render
+from django.views import View
 from django import http
 
 
-def index(request):
-    """ 手机号重复 """
-    if request.method == 'GET':
-        return render(request, 'index.html')
+class IndexView(View):
+    """ 主页 """
 
-    return http.HttpResponseForbidden()
+    def get(self, request):
+        return render(request, 'index.html')

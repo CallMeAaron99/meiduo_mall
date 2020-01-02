@@ -82,6 +82,6 @@ def sms_verification_code(request, mobile):
         # 测试短信验证码
         logger.info(sms_code)
 
-        return http.JsonResponse({'code': RETCODE.OK})
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': "ok"})
 
     return http.HttpResponseForbidden()

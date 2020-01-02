@@ -3,10 +3,10 @@ from django.shortcuts import render, redirect
 from django_redis import get_redis_connection
 from django.views import View
 from django import http
-import re
 
 from .models import User
 from . import constants
+from meiduo_mall.utils.re_verify import re_verification
 
 
 def is_username_exist(request, username):
@@ -25,9 +25,10 @@ def is_mobile_exist(request, mobile):
     return http.HttpResponseForbidden()
 
 
-def log_out(request):
+class LogOutView(View):
     """ log out """
-    if request.method == 'GET':
+
+    def get(self, request):
 
         # 解除登录状态
         logout(request)
@@ -38,27 +39,24 @@ def log_out(request):
 
         return response
 
-    return http.HttpResponseForbidden()
 
+class UserCenterView(View):
 
-def user_center(request):
-
-    # 查看 request.user 用户是 AnonymousUser 对象还是 AbstractBaseUser 对象
-    if request.user.is_authenticated:
-        return render(request, 'user_center_info.html')
-    else:
-        return redirect('/login/?next=/info/')
+    def get(self, request):
+        # 查看 request.user 用户是 AnonymousUser 对象还是 AbstractBaseUser 对象
+        if request.user.is_authenticated:
+            return render(request, 'user_center_info.html')
+        else:
+            return redirect('/login/?next=/info/')
 
 
 class RegisterView(View):
     """ register """
 
-    @staticmethod
-    def get(request):
+    def get(self, request):
         return render(request, 'register.html')
 
-    @staticmethod
-    def post(request):
+    def post(self, request):
         # registration_info = request.POST
 
         username = request.POST.get('username')
@@ -72,20 +70,12 @@ class RegisterView(View):
         if not all([username, password, password2, mobile, sms_code, allow]):
             return http.HttpResponseForbidden()
 
-        # username 判断
-        if not re.match(r'^[a-zA-Z0-9_-]{5,20}$', username):
-            return http.HttpResponseForbidden()
-
-        # password 判断
-        if not re.match(r'^[0-9A-Za-z]{8,20}$', password):
+        # username, password, mobile  判断
+        if re_verification(username=username, password=password, mobile=mobile) is False:
             return http.HttpResponseForbidden()
 
         # 二次密码判断
         if password != password2:
-            return http.HttpResponseForbidden()
-
-        # mobile 判断
-        if not re.match(r'^1[345789]\d{9}$', mobile):
             return http.HttpResponseForbidden()
 
         # 协议判断
@@ -102,6 +92,7 @@ class RegisterView(View):
 
         # 短信验证码不正确
         if sms_code != server_sms_code.decode():
+            redis_connection.delete('sms_code_%s' % mobile)
             return render(request, 'register.html', {'register_errmsg': "短信验证码不正确"})
 
         # 录入信息
@@ -113,12 +104,10 @@ class RegisterView(View):
 class LoginView(View):
     """ login """
 
-    @staticmethod
-    def get(request):
+    def get(self, request):
         return render(request, 'login.html')
 
-    @staticmethod
-    def post(request):
+    def post(self, request):
         username = request.POST.get('username')
         password = request.POST.get('password')
         remembered = request.POST.get('remembered')
@@ -126,12 +115,8 @@ class LoginView(View):
         if all([username, password]) is False:
             return http.HttpResponseForbidden()
 
-        # 用户名或手机格式不正确
-        if not re.match(r'^([a-zA-Z0-9_-]{5,20}|1[345789]\d{9})$', username):
-            return http.HttpResponseForbidden()
-
-        # 密码式不正确
-        if not re.match(r'^[0-9A-Za-z]{8,20}$', password):
+        # 用户名和密码格式判断
+        if re_verification(username=username, password=password) is False:
             return http.HttpResponseForbidden()
 
         # 用户名密码判断原理
