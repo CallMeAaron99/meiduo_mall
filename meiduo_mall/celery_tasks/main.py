@@ -11,4 +11,4 @@ celery_object = Celery('meiduo')
 celery_object.config_from_object('celery_tasks.config')
 
 # 注册 celery 任务 (加载 url 下的 tasks.py 文件, 所以路径中必须有 tasks 文件)
-celery_object.autodiscover_tasks(['celery_tasks.sms'])
+celery_object.autodiscover_tasks(['celery_tasks.sms', 'celery_tasks.email'])

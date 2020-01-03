@@ -19,4 +19,4 @@ def deserialize(data):
 
 
 if __name__ == '__main__':
-    print(deserialize('b&#39;eyJhbGciOiJIUzUxMiIsImlhdCI6MTU3Nzk0NDA5NiwiZXhwIjoxNTc3OTQ0Njk2fQ.eyJvcGVuX2lkIjoiRTI4NThGMTgzQUVFNUI1M0YyMEM5NkJBQTQ3MjlFQkIifQ.pfPgggaQtrYV0mrgpZ_uiML86SF_ifVC5JU8s_N1kqEd07uD8CTAps5W1Q1FzxDqsFPMUQPMbxqnELXKlyzvjQ&#39;'))
+    print(deserialize(''))

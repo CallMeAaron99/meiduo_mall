@@ -3,10 +3,17 @@ from django.shortcuts import render, redirect
 from django_redis import get_redis_connection
 from django.views import View
 from django import http
+from django.conf import settings
+from django.core.mail import send_mail
+import json
 
 from .models import User
 from . import constants
+from meiduo_mall.utils.views import LoginRequiredView
+from meiduo_mall.utils.response_code import RETCODE
 from meiduo_mall.utils.re_verify import re_verification
+from meiduo_mall.utils import serializer
+from celery_tasks.email.taskes import send_verify_email
 
 
 def is_username_exist(request, username):
@@ -40,14 +47,15 @@ class LogOutView(View):
         return response
 
 
-class UserCenterView(View):
+class UserCenterView(LoginRequiredView):
 
     def get(self, request):
         # 查看 request.user 用户是 AnonymousUser 对象还是 AbstractBaseUser 对象
-        if request.user.is_authenticated:
-            return render(request, 'user_center_info.html')
-        else:
-            return redirect('/login/?next=/info/')
+        # if request.user.is_authenticated:
+        #     return render(request, 'user_center_info.html')
+        # else:
+        #     return redirect('/login/?next=/info/')
+        return render(request, 'user_center_info.html')
 
 
 class RegisterView(View):
@@ -98,7 +106,7 @@ class RegisterView(View):
         # 录入信息
         User.objects.create_user(username=username, password=password, mobile=mobile)
 
-        return redirect('/')
+        return redirect('/login/')
 
 
 class LoginView(View):
@@ -173,3 +181,63 @@ class LoginView(View):
             response.set_cookie('username', user.username, max_age=constants.REMEMBERED_PASSWORD_SESSION_EXPIRY)
 
         return response
+
+
+class SendEmailView(LoginRequiredView):
+
+    def put(self, request):
+
+        # 获取请求体数据并解码再用 json 反序列化成 dict 然后获取值
+        email = json.loads(request.body.decode()).get('email')
+
+        if email is None:
+            return http.HttpResponseForbidden()
+
+        # 邮箱格式判断
+        if re_verification(email=email) is False:
+            return http.HttpResponseForbidden()
+
+        # 获取当前登录 user
+        user = request.user
+
+        # 邮箱已注册过
+        if User.objects.filter(email=email).exclude(id=user.id):
+            return http.JsonResponse({'code': RETCODE.EMAILERR, 'errmsg': "该邮箱已注册过"})
+
+        # 验证前端邮箱和当前登录用户是否一样, 避免多次执行 SQL
+        if user.email != email:
+            # 保存邮箱地址到当前登录 user
+            user.email = email
+            user.save()
+
+        verify_query_string = serializer.serialize(900, id=user.id, email=user.email).decode()
+
+        # celery 将发送 email 任务存放到 broker
+        send_verify_email.delay(email, settings.EMAIL_VERIFICATION_URL + '?token=' + verify_query_string)
+
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': "ok"})
+
+
+class EmailVerificationView(View):
+
+    def get(self, request):
+
+        token = request.GET.get('token')
+
+        # 对 token 解密并重新赋值
+        token = serializer.deserialize(token)
+
+        # 解密失败或者查询参数中没有 token
+        if token is None:
+            return http.HttpResponseForbidden()
+
+        try:
+            # 获取需要邮箱激活的用户
+            user = User.objects.get(id=token.get('id'), email=token.get('email'))
+            # 邮箱激活
+            user.email_active = True
+            user.save()
+            return redirect('/')
+        except User.DoesNotExist:
+            # 激活失败
+            return http.HttpResponseGone()

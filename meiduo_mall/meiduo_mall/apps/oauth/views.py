@@ -112,6 +112,7 @@ class OAuthCallback(View):
             return render(request, 'oauth_callback.html', {'openid_errmsg': 'QQ授权过期'})
 
         try:
+            # 手机号是否已注册过
             user = User.objects.get(mobile=mobile)
 
             # 手机号已绑定过用户
@@ -123,7 +124,7 @@ class OAuthCallback(View):
             user = User.objects.create_user(username=mobile, password=password, mobile=mobile)
 
         # 绑定新建用户
-        OAuthQQUser.objects.create(user=user, openid=openid)
+        OAuthQQUser.objects.create(user=user, openid=openid['open_id'])
 
         login(request, user)
         response = redirect(request.GET.get('state') or '/')

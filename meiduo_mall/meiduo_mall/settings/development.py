@@ -219,7 +219,22 @@ AUTH_USER_MODEL = 'users.User'
 # authenticate 认证方法入口
 AUTHENTICATION_BACKENDS = ['users.utils.UserModelBackend']
 
+# LoginRequiredMixin 的登录页面 url
+LOGIN_URL = '/login/'
+
 # qq 验证信息
 QQ_CLIENT_ID = '101518219'
 QQ_CLIENT_SECRET = '418d84ebdc7241efb79536886ae95224'
 QQ_REDIRECT_URI = 'http://www.meiduo.site:8000/oauth_callback'
+
+# 邮箱验证 url
+EMAIL_VERIFICATION_URL = 'http://www.meiduo.site:8000/email/verification/'
+
+# send email configuration
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # 指定邮件后端
+EMAIL_HOST = 'smtp.163.com'  # 发邮件主机
+EMAIL_PORT = 25  # 发邮件端口
+EMAIL_HOST_USER = 'itcast99@163.com'  # 授权的邮箱
+EMAIL_HOST_PASSWORD = 'python99'  # 邮箱授权时获得的密码，非注册登录密码
+EMAIL_FROM = '美多商城<itcast99@163.com>'  # 发件人抬头
