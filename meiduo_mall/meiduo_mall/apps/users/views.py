@@ -241,3 +241,9 @@ class EmailVerificationView(View):
         except User.DoesNotExist:
             # 激活失败
             return http.HttpResponseGone()
+
+
+class AddressView(LoginRequiredView):
+
+    def get(self, request):
+        return render(request, 'user_center_site.html')

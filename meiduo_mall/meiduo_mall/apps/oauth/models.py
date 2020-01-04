@@ -10,4 +10,4 @@ class OAuthQQUser(BaseModel):
     openid = models.CharField(max_length=64)
 
     class Meta:
-        db_table = 'oauth_qq_user_tb'
+        db_table = 'tb_oauth_qq_user'

@@ -7,4 +7,4 @@ class User(AbstractUser):
     email_active = models.BooleanField(default=False)
 
     class Meta:
-        db_table = 'users_tb'
+        db_table = 'tb_users'
