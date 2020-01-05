@@ -3,8 +3,10 @@ from django.views import View
 from django import http
 
 
-class IndexView(View):
+def index(request):
     """ 主页 """
+    if request.method == 'GET':
 
-    def get(self, request):
         return render(request, 'index.html')
+    else:
+        return http.HttpResponseForbidden()
