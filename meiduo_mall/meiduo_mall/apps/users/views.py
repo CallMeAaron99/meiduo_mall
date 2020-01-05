@@ -4,7 +4,6 @@ from django_redis import get_redis_connection
 from django.views import View
 from django import http
 from django.conf import settings
-from django.core.mail import send_mail
 import json
 
 from .models import User, Address
@@ -15,6 +14,127 @@ from meiduo_mall.utils.response_code import RETCODE
 from meiduo_mall.utils.re_verify import re_verification
 from meiduo_mall.utils import serializer
 from celery_tasks.email.taskes import send_verify_email
+
+
+def _address_save(request, create=True, address_id=None):
+    """ address 新增或修改操作, create == True 新增, False 修改"""
+    address_info = json.loads(request.body.decode())
+
+    title = address_info.get('title')
+    receiver = address_info.get('receiver')
+    province_id = address_info.get('province_id')
+    city_id = address_info.get('city_id')
+    district_id = address_info.get('district_id')
+    place = address_info.get('place')
+    mobile = address_info.get('mobile')
+    tel = address_info.get('tel')
+    email = address_info.get('email')
+
+    if all([title, receiver, province_id, city_id, district_id, place, mobile]) is False:
+        return http.HttpResponseForbidden()
+
+    if re_verification(mobile=mobile) is False:
+        return http.HttpResponseForbidden()
+
+    # 如果 tel 不为 '' 做 re 判断
+    if tel and re_verification(tel=tel) is False:
+        return http.HttpResponseForbidden()
+
+    # 如果 email 不为 '' 做 re 判断
+    if email and re_verification(email=email) is False:
+        return http.HttpResponseForbidden()
+
+    user = request.user
+
+    try:
+        if create is None:
+            # 保存收货地址信息
+            address_obj = Address.objects.create(
+                user_id=user.id,
+                title=title,
+                receiver=receiver,
+                province_id=province_id,
+                city_id=city_id,
+                district_id=district_id,
+                place=place,
+                mobile=mobile,
+                tel=tel,
+                email=email
+            )
+            # 新增地址设为登录用户默认地址
+            user.default_address_id = address_obj.id
+            user.save()
+        else:
+            # 修改登录用户的 address 对象
+            address_obj = Address.objects.get(user_id=user.id, id=address_id, is_deleted=False)
+
+            # 修改对象属性
+            address_obj.title=title
+            address_obj.receiver=receiver
+            address_obj.province_id=province_id
+            address_obj.city_id=city_id
+            address_obj.district_id=district_id
+            address_obj.place=place
+            address_obj.mobile=mobile
+            address_obj.tel=tel
+            address_obj.email=email
+
+            address_obj.save()
+
+    except Area.DoesNotExist:
+        # 省市区数据绑定失败
+        return http.HttpResponseForbidden()
+    # 准备 json 的对象数据
+    address = {
+        'id': address_obj.id,
+        'title': address_obj.title,
+        'receiver': address_obj.receiver,
+        'province_id': address_obj.province_id,
+        'province': address_obj.province.name,
+        'city_id': address_obj.city_id,
+        'city': address_obj.city.name,
+        'district_id': address_obj.district_id,
+        'district': address_obj.district.name,
+        'place': address_obj.place,
+        'mobile': address_obj.mobile,
+        'tel': address_obj.tel,
+        'email': address_obj.email
+    }
+    return http.JsonResponse({'code': RETCODE.OK, 'errmsg': "ok", 'address': address})
+
+
+def _address_modify(request, address_id, title=True):
+    if request.method == 'PUT':
+        user = request.user
+        # 是否登录用户
+        if user.is_authenticated:
+            try:
+                # 地址是否属于登录用户
+                address = Address.objects.get(id=address_id, is_deleted=False, user_id=user.id)
+                if title:
+                    # 修改用户默认地址
+                    user.default_address_id = address.id
+                else:
+                    # 获取请求体 json 数据中的 input_title
+                    title = json.loads(request.body.decode()).get('input_title')
+
+                    if title is None:
+                        return http.JsonResponse({'code': RETCODE.PARAMERR, 'errmsg': "参数有误"})
+
+                    # 修改地址标题
+                    address.title = title
+
+                user.save()
+
+                return http.JsonResponse({'code': RETCODE.OK, 'errmsg': "ok"})
+
+            except Address.DoesNotExist:
+                # address 不在数据库
+                return http.JsonResponse({'code': RETCODE.SESSIONERR, 'errmsg': "地址有误"})
+        else:
+            return http.JsonResponse({'code': RETCODE.SESSIONERR, 'errmsg': "用户未登录"})
+    else:
+        return http.HttpResponseForbidden()
 
 
 def is_username_exist(request, username):
@@ -275,82 +395,11 @@ class AddressView(LoginRequiredView):
 
     def post(self, request):
         """ 新增地址 """
-        address_info = json.loads(request.body.decode())
+        return _address_save(request, True)
 
-        title = address_info.get('title')
-        receiver = address_info.get('receiver')
-        province_id = address_info.get('province_id')
-        city_id = address_info.get('city_id')
-        district_id = address_info.get('district_id')
-        place = address_info.get('place')
-        mobile = address_info.get('mobile')
-        tel = address_info.get('tel')
-        email = address_info.get('email')
-
-        if all([title, receiver, province_id, city_id, district_id, place, mobile]) is False:
-            return http.HttpResponseForbidden()
-
-        if re_verification(mobile=mobile) is False:
-            return http.HttpResponseForbidden()
-
-        # 如果 tel 不为 '' 做 re 判断
-        if tel and re_verification(tel=tel) is False:
-            return http.HttpResponseForbidden()
-
-        # 如果 email 不为 '' 做 re 判断
-        if email and re_verification(email=email) is False:
-            return http.HttpResponseForbidden()
-
-        try:
-            # province = Area.objects.get(id=province_id)
-            # city = Area.objects.get(id=city_id)
-            # district = Area.objects.get(id=district_id)
-
-            user = request.user
-
-            # 保存收货地址信息
-            address_obj = Address.objects.create(
-                user_id=user.id,
-                title=title,
-                receiver=receiver,
-                province_id=province_id,
-                city_id=city_id,
-                district_id=district_id,
-                place=place,
-                mobile=mobile,
-                tel=tel,
-                email=email
-            )
-
-            # 新增地址设为登录用户默认地址
-            user.default_address_id = address_obj.id
-            user.save()
-
-            # 准备 json 的对象数据
-            address = {
-                'id': address_obj.id,
-                'title': address_obj.title,
-                'receiver': address_obj.receiver,
-                'province_id': address_obj.province_id,
-                'province': address_obj.province.name,
-                'city_id': address_obj.city_id,
-                'city': address_obj.city.name,
-                'district_id': address_obj.district_id,
-                'district': address_obj.district.name,
-                'place': address_obj.place,
-                'mobile': address_obj.mobile,
-                'tel': address_obj.tel,
-                'email': address_obj.email
-            }
-
-            return http.JsonResponse({'code': RETCODE.OK, 'errmsg': "ok", 'address': address})
-        except Area.DoesNotExist:
-            # 省市区数据绑定失败
-            return http.HttpResponseForbidden()
-
-    def put(self, request):
+    def put(self, request, address_id):
         """ 修改地址 """
-        pass
+        return _address_save(request, False, address_id)
 
     def delete(self, request, address_id):
         """ 删除地址 """
@@ -359,7 +408,7 @@ class AddressView(LoginRequiredView):
 
         try:
             # 获取当前登录用户要删除的 address 模型对象
-            address = Address.objects.get(user_id=user.id, id=address_id)
+            address = Address.objects.get(user_id=user.id, id=address_id, is_deleted=False)
             # 逻辑删除
             address.is_deleted = True
             address.save()
@@ -374,5 +423,15 @@ class AddressView(LoginRequiredView):
             return http.JsonResponse({'code': RETCODE.OK, 'errmsg': "ok"})
 
         except Address.DoesNotExist:
-            # 前端数据异常
+            # 地址查询失败
             return http.HttpResponseForbidden()
+
+
+def address_default(request, address_id):
+    """ 设置默认地址 """
+    return _address_modify(request, address_id, False)
+
+
+def address_title(request, address_id):
+    """ 修改地址标题 """
+    return _address_modify(request, address_id, True)
