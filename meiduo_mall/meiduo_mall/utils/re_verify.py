@@ -16,6 +16,9 @@ def re_verification(**kwargs):
     if 'email' in kwargs:
         results.append(re.match(r'^[a-z0-9][\w\.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}$', kwargs['email']))
 
+    if 'tel' in kwargs:
+        results.append(re.match(r'^(0[0-9]{2,3}-)?([2-9][0-9]{6,7})+(-[0-9]{1,4})?$', kwargs['tel']))
+
     return all(results)
 
 

@@ -47,7 +47,7 @@ def area(request):
         else:
 
             # 从 redis 中获取市区数据
-            sub_data = cache.get('sub_data')
+            sub_data = cache.get('sub_data_%s' % area_id)
 
             # redis 中没有市区数据
             if sub_data is None:
@@ -70,7 +70,7 @@ def area(request):
                     })
 
                 # 将市区数据缓存到 redis
-                cache.set('sub_data', sub_data, 3600)
+                cache.set('sub_data_%s' % area_id, sub_data, 3600)
 
             return http.JsonResponse({'code': RETCODE.OK, 'errmsg': "ok", 'sub_data': sub_data})
     else:

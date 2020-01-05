@@ -7,7 +7,8 @@ from django.conf import settings
 from django.core.mail import send_mail
 import json
 
-from .models import User
+from .models import User, Address
+from areas.models import Area
 from . import constants
 from meiduo_mall.utils.views import LoginRequiredView
 from meiduo_mall.utils.response_code import RETCODE
@@ -246,4 +247,132 @@ class EmailVerificationView(View):
 class AddressView(LoginRequiredView):
 
     def get(self, request):
-        return render(request, 'user_center_site.html')
+
+        # 获取当前登录用户 id
+        user = request.user
+
+        address = []
+
+        # 获取用户所有关联收货地址
+        for address_obj in Address.objects.filter(user_id=user.id, is_deleted=False):
+            address.append({
+                'id': address_obj.id,
+                'title': address_obj.title,
+                'receiver': address_obj.receiver,
+                'province_id': address_obj.province_id,
+                'province': address_obj.province.name,
+                'city_id': address_obj.city_id,
+                'city': address_obj.city.name,
+                'district_id': address_obj.district_id,
+                'district': address_obj.district.name,
+                'place': address_obj.place,
+                'mobile': address_obj.mobile,
+                'tel': address_obj.tel,
+                'email': address_obj.email
+            })
+
+        return render(request, 'user_center_site.html', {'addresses': address, 'default_address_id': user.default_address_id})
+
+    def post(self, request):
+        """ 新增地址 """
+        address_info = json.loads(request.body.decode())
+
+        title = address_info.get('title')
+        receiver = address_info.get('receiver')
+        province_id = address_info.get('province_id')
+        city_id = address_info.get('city_id')
+        district_id = address_info.get('district_id')
+        place = address_info.get('place')
+        mobile = address_info.get('mobile')
+        tel = address_info.get('tel')
+        email = address_info.get('email')
+
+        if all([title, receiver, province_id, city_id, district_id, place, mobile]) is False:
+            return http.HttpResponseForbidden()
+
+        if re_verification(mobile=mobile) is False:
+            return http.HttpResponseForbidden()
+
+        # 如果 tel 不为 '' 做 re 判断
+        if tel and re_verification(tel=tel) is False:
+            return http.HttpResponseForbidden()
+
+        # 如果 email 不为 '' 做 re 判断
+        if email and re_verification(email=email) is False:
+            return http.HttpResponseForbidden()
+
+        try:
+            # province = Area.objects.get(id=province_id)
+            # city = Area.objects.get(id=city_id)
+            # district = Area.objects.get(id=district_id)
+
+            user = request.user
+
+            # 保存收货地址信息
+            address_obj = Address.objects.create(
+                user_id=user.id,
+                title=title,
+                receiver=receiver,
+                province_id=province_id,
+                city_id=city_id,
+                district_id=district_id,
+                place=place,
+                mobile=mobile,
+                tel=tel,
+                email=email
+            )
+
+            # 新增地址设为登录用户默认地址
+            user.default_address_id = address_obj.id
+            user.save()
+
+            # 准备 json 的对象数据
+            address = {
+                'id': address_obj.id,
+                'title': address_obj.title,
+                'receiver': address_obj.receiver,
+                'province_id': address_obj.province_id,
+                'province': address_obj.province.name,
+                'city_id': address_obj.city_id,
+                'city': address_obj.city.name,
+                'district_id': address_obj.district_id,
+                'district': address_obj.district.name,
+                'place': address_obj.place,
+                'mobile': address_obj.mobile,
+                'tel': address_obj.tel,
+                'email': address_obj.email
+            }
+
+            return http.JsonResponse({'code': RETCODE.OK, 'errmsg': "ok", 'address': address})
+        except Area.DoesNotExist:
+            # 省市区数据绑定失败
+            return http.HttpResponseForbidden()
+
+    def put(self, request):
+        """ 修改地址 """
+        pass
+
+    def delete(self, request, address_id):
+        """ 删除地址 """
+
+        user = request.user
+
+        try:
+            # 获取当前登录用户要删除的 address 模型对象
+            address = Address.objects.get(user_id=user.id, id=address_id)
+            # 逻辑删除
+            address.is_deleted = True
+            address.save()
+
+            # 如果删除的是默认地址
+            if user.default_address_id == int(address_id):
+                # 将最近一次修改过的 address 对象拿到 (QuerySet 可以用下标拿到相应的对象)
+                # 将 address 对象的 id 值给 user 中默认地址的 id
+                user.default_address_id = Address.objects.filter(user_id=user.id, is_deleted=False)[0].id
+                user.save()
+
+            return http.JsonResponse({'code': RETCODE.OK, 'errmsg': "ok"})
+
+        except Address.DoesNotExist:
+            # 前端数据异常
+            return http.HttpResponseForbidden()
