@@ -248,3 +248,9 @@ EMAIL_PORT = 25  # 发邮件端口
 EMAIL_HOST_USER = 'itcast99@163.com'  # 授权的邮箱
 EMAIL_HOST_PASSWORD = 'python99'  # 邮箱授权时获得的密码，非注册登录密码
 EMAIL_FROM = '美多商城<itcast99@163.com>'  # 发件人抬头
+
+# django.core.files.storage 中的 Storage 类的 url 方法的 name 参数会是 MEDIA_URL
+# MEDIA_URL = 'http://image.meiduo.site:8888/'
+
+# 修改 django 默认文件存储类
+DEFAULT_FILE_STORAGE = 'meiduo_mall.utils.fastdfs.fdfs_storage.FastDFSStorage'
